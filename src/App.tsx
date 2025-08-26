@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import SettingsModal from './components/SettingsModal';
+import GameEndOverlay from './components/GameEndOverlay';
+import NewGameIcon from './components/icons/NewGameIcon';
+import RestartIcon from './components/icons/RestartIcon';
+import SettingsIcon from './components/icons/SettingsIcon';
 import {
   createBoard,
   revealTile,
@@ -41,10 +45,25 @@ function App() {
   const [minesLeft, setMinesLeft] = useState<number>(gameSettings.mines);
   const [isFirstClick, setIsFirstClick] = useState<boolean>(true);
   const [theme, setTheme] = useState<string>('light');
+  const [timer, setTimer] = useState<number>(0);
 
   useEffect(() => {
     startNewGame();
   }, [gameSettings]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (gameStatus === 'playing' && !isFirstClick) {
+      interval = setInterval(() => {
+        setTimer(prevTimer => prevTimer + 1);
+      }, 1000);
+    } else {
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [gameStatus, isFirstClick]);
 
   useEffect(() => {
     if (gameStatus === 'playing') {
@@ -76,6 +95,7 @@ function App() {
     setGameStatus('playing');
     setMinesLeft(gameSettings.mines);
     setIsFirstClick(true);
+    setTimer(0);
   };
 
   const restartGame = () => {
@@ -83,6 +103,7 @@ function App() {
     setGameStatus('playing');
     setMinesLeft(gameSettings.mines);
     setIsFirstClick(false);
+    setTimer(0);
   };
 
   const handleLevelChange = (level: string) => {
@@ -142,26 +163,37 @@ function App() {
 
   return (
     <div className="App" data-theme={theme}>
+      {(gameStatus === 'win' || gameStatus === 'lose') && (
+        <GameEndOverlay gameStatus={gameStatus} onPlayAgain={startNewGame} />
+      )}
+      <div className="game-container">
         <div className="header">
-            <h1>Minesweeper</h1>
-            <div className="game-actions">
-                <button onClick={startNewGame}>New Game</button>
-                <button onClick={restartGame}>Restart</button>
-                <button onClick={() => setIsSettingsOpen(true)}>Settings</button>
-            </div>
+          <h1>Minesweeper</h1>
+          <div className="game-actions">
+            <button onClick={startNewGame} title="New Game"><NewGameIcon /></button>
+            <button onClick={restartGame} title="Restart"><RestartIcon /></button>
+            <button onClick={() => setIsSettingsOpen(true)} title="Settings"><SettingsIcon /></button>
+          </div>
         </div>
-      <div className="game-info">
-        <h2>{gameStatus === 'playing' ? 'Minesweeper' : gameStatus === 'win' ? 'You Win!' : 'You Lose!'}</h2>
-        <div className="mines-counter">Mines left: {minesLeft}</div>
+        <div className="game-info">
+          <div className="info-box">
+            <span className="info-label">Mines</span>
+            <span className="info-value">{minesLeft}</span>
+          </div>
+          <div className="info-box">
+            <span className="info-label">Time</span>
+            <span className="info-value">{timer}</span>
+          </div>
+        </div>
+        <Board
+          board={board}
+          gameStatus={gameStatus}
+          failedChord={failedChord}
+          onLeftClick={handleLeftClick}
+          onRightClick={handleRightClick}
+          onMouseDown={handleMouseDown}
+        />
       </div>
-      <Board
-        board={board}
-        gameStatus={gameStatus}
-        failedChord={failedChord}
-        onLeftClick={handleLeftClick}
-        onRightClick={handleRightClick}
-        onMouseDown={handleMouseDown}
-      />
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
